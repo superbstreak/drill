@@ -465,7 +465,7 @@ struct DECLSPEC_DRILL_CLIENT DateTimeBase{
     DateTimeBase():m_datetime(0){}
     virtual ~DateTimeBase(){}
     int64_t m_datetime;
-    int64_t getMillis() const { return m_datetime; }
+    int64_t getMillis() const { return (NULL == m_datetime) ? 0 :  m_datetime; }
     virtual void load() =0;
     virtual std::string toString()=0;
 };

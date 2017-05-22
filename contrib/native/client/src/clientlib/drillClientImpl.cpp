@@ -86,6 +86,9 @@ connectionStatus_t DrillClientImpl::connect(const char* connStr, DrillUserProper
         std::vector<std::string> drillbits;
         int err = zook.getAllDrillbits(hostPortStr, drillbits);
         if(!err){
+            if (drillbits.empty()){
+                return handleConnError(CONN_FAILURE, getMessage(ERR_CONN_ZKNODBIT));
+            }
             Utils::shuffle(drillbits);
             exec::DrillbitEndpoint endpoint;
             err = zook.getEndPoint(drillbits[drillbits.size() -1], endpoint);// get the last one in the list
@@ -274,11 +277,13 @@ connectionStatus_t DrillClientImpl::recvHandshake(){
     if(m_rbuf!=NULL){
         Utils::freeBuffer(m_rbuf, MAX_SOCK_RD_BUFSIZE); m_rbuf=NULL;
     }
-#ifdef WIN32_SHUTDOWN_ON_TIMEOUT
+
     if (m_pError != NULL) {
+         DRILL_MT_LOG(DRILL_LOG(LOG_ERROR) << "DrillClientImpl::recvHandshake: failed to complete handshake with server."
+        		<< m_pError->msg << "\n";)
         return static_cast<connectionStatus_t>(m_pError->status);
     }
-#endif // WIN32_SHUTDOWN_ON_TIMEOUT
+
     startHeartbeatTimer();
 
     return CONN_SUCCESS;
@@ -1130,6 +1135,10 @@ status_t DrillClientImpl::processPreparedStatement(AllocatedBufferPtr allocatedB
     std::map<int,DrillClientQueryHandle*>::const_iterator it=this->m_queryHandles.find(msg.m_coord_id);
     if(it!=this->m_queryHandles.end()){
         DrillClientPrepareHandle* pDrillClientPrepareHandle=static_cast<DrillClientPrepareHandle*>((*it).second);
+        if (!validateResultRPCType(pDrillClientPrepareHandle, msg))
+        {
+            return handleQryError(QRY_COMM_ERROR, "Unexpected RPC Type for prepared statement.", pDrillClientPrepareHandle);
+        }
         exec::user::CreatePreparedStatementResp resp;
         DRILL_MT_LOG(DRILL_LOG(LOG_TRACE)  << "Received Prepared Statement Handle " << msg.m_pbody.size() << std::endl;)
         if (!resp.ParseFromArray(msg.m_pbody.data(), msg.m_pbody.size())) {
@@ -1138,7 +1147,10 @@ status_t DrillClientImpl::processPreparedStatement(AllocatedBufferPtr allocatedB
         if (resp.has_status() && resp.status() != exec::user::OK) {
             return handleQryError(QRY_FAILED, resp.error(), pDrillClientPrepareHandle);
         }
-        pDrillClientPrepareHandle->setupPreparedStatement(resp.prepared_statement());
+        if (QRY_SUCCESS != pDrillClientPrepareHandle->setupPreparedStatement(resp.prepared_statement()))
+        {
+            return handleQryError(QRY_FAILED, "Error during prepared statement setup.", pDrillClientPrepareHandle);
+        }
         pDrillClientPrepareHandle->notifyListener(pDrillClientPrepareHandle, NULL);
         DRILL_MT_LOG(DRILL_LOG(LOG_DEBUG) << "Prepared Statement handle - " << resp.prepared_statement().server_handle().DebugString() << std::endl;)
     }else{
@@ -1169,6 +1181,10 @@ status_t DrillClientImpl::processCatalogsResult(AllocatedBufferPtr allocatedBuff
     std::map<int,DrillClientQueryHandle*>::const_iterator it=this->m_queryHandles.find(msg.m_coord_id);
     if(it!=this->m_queryHandles.end()){
         DrillClientCatalogResult* pHandle=static_cast<DrillClientCatalogResult*>((*it).second);
+        if (!validateResultRPCType(pHandle, msg))
+        {
+            return handleQryError(QRY_COMM_ERROR, "Unexpected RPC Type for getcatalogs results.", pHandle);
+        }
         exec::user::GetCatalogsResp* resp = new exec::user::GetCatalogsResp;
         pHandle->attachMetadataResult(resp);
         DRILL_MT_LOG(DRILL_LOG(LOG_TRACE)  << "Received GetCatalogs result Handle " << msg.m_pbody.size() << std::endl;)
@@ -1217,6 +1233,10 @@ status_t DrillClientImpl::processSchemasResult(AllocatedBufferPtr allocatedBuffe
     std::map<int,DrillClientQueryHandle*>::const_iterator it=this->m_queryHandles.find(msg.m_coord_id);
     if(it!=this->m_queryHandles.end()){
         DrillClientSchemaResult* pHandle=static_cast<DrillClientSchemaResult*>((*it).second);
+        if (!validateResultRPCType(pHandle, msg))
+        {
+            return handleQryError(QRY_COMM_ERROR, "Unexpected RPC Type for getschemas results.", pHandle);
+        }
         exec::user::GetSchemasResp* resp = new exec::user::GetSchemasResp();
         pHandle->attachMetadataResult(resp);
         DRILL_MT_LOG(DRILL_LOG(LOG_TRACE)  << "Received GetSchemasResp result Handle " << msg.m_pbody.size() << std::endl;)
@@ -1265,6 +1285,10 @@ status_t DrillClientImpl::processTablesResult(AllocatedBufferPtr allocatedBuffer
     std::map<int,DrillClientQueryHandle*>::const_iterator it=this->m_queryHandles.find(msg.m_coord_id);
     if(it!=this->m_queryHandles.end()){
         DrillClientTableResult* pHandle=static_cast<DrillClientTableResult*>((*it).second);
+        if (!validateResultRPCType(pHandle, msg))
+        {
+            return handleQryError(QRY_COMM_ERROR, "Unexpected RPC Type for gettables results.", pHandle);
+        }
         exec::user::GetTablesResp* resp =  new exec::user::GetTablesResp();
         pHandle->attachMetadataResult(resp);
         DRILL_MT_LOG(DRILL_LOG(LOG_TRACE)  << "Received GeTablesResp result Handle " << msg.m_pbody.size() << std::endl;)
@@ -1312,6 +1336,10 @@ status_t DrillClientImpl::processColumnsResult(AllocatedBufferPtr allocatedBuffe
     std::map<int,DrillClientQueryHandle*>::const_iterator it=this->m_queryHandles.find(msg.m_coord_id);
     if(it!=this->m_queryHandles.end()){
         DrillClientColumnResult* pHandle=static_cast<DrillClientColumnResult*>((*it).second);
+        if (!validateResultRPCType(pHandle, msg))
+        {
+            return handleQryError(QRY_COMM_ERROR, "Unexpected RPC Type for getcolumns results.", pHandle);
+        }
         exec::user::GetColumnsResp* resp = new exec::user::GetColumnsResp();
         pHandle->attachMetadataResult(resp);
         DRILL_MT_LOG(DRILL_LOG(LOG_TRACE)  << "Received GetColumnsResp result Handle " << msg.m_pbody.size() << std::endl;)
@@ -1359,6 +1387,10 @@ status_t DrillClientImpl::processServerMetaResult(AllocatedBufferPtr allocatedBu
     std::map<int,DrillClientQueryHandle*>::const_iterator it=this->m_queryHandles.find(msg.m_coord_id);
     if(it!=this->m_queryHandles.end()){
         DrillClientServerMetaHandle* pHandle=static_cast<DrillClientServerMetaHandle*>((*it).second);
+        if (!validateResultRPCType(pHandle, msg))
+        {
+            return handleQryError(QRY_COMM_ERROR, "Unexpected RPC Type for GetServerMetaResp results.", pHandle);
+        }
         exec::user::GetServerMetaResp* resp = new exec::user::GetServerMetaResp();
         DRILL_MT_LOG(DRILL_LOG(LOG_TRACE)  << "Received GetServerMetaResp result Handle " << msg.m_pbody.size() << std::endl;)
         if (!(resp->ParseFromArray(msg.m_pbody.data(), msg.m_pbody.size()))) {
@@ -1412,8 +1444,15 @@ status_t DrillClientImpl::processQueryStatusResult(exec::shared::QueryResult* qr
     switch(qr->query_state()) {
         case exec::shared::QueryResult_QueryState_FAILED:
             {
-                // get the error message from protobuf and handle errors
-                ret=handleQryError(ret, qr->error(0), pDrillClientQueryResult);
+                if (0 == qr->error_size())
+                {
+                    ret = handleQryError(ret, "Unknown error from protobuf layer.", pDrillClientQueryResult);
+                }
+                else
+                {
+                    // get the error message from protobuf and handle errors
+                    ret = handleQryError(ret, qr->error(0), pDrillClientQueryResult);
+                }
             }
             break;
             // m_pendingRequests should be decremented when the query is
@@ -1648,6 +1687,20 @@ status_t DrillClientImpl::validateResultMessage(const rpc::InBoundRpcMessage& ms
         return QRY_FAILURE;
     }
     return QRY_SUCCESS;
+}
+
+bool DrillClientImpl::validateResultRPCType(DrillClientQueryHandle* pQueryHandle, const rpc::InBoundRpcMessage& msg) {
+    DRILL_MT_LOG(DRILL_LOG(LOG_TRACE) << "DrillClientImpl::validateResultRPCType" << std::endl;)
+    if (NULL != pQueryHandle) {
+        DRILL_MT_LOG(DRILL_LOG(LOG_DEBUG)
+            << "DrillClientImpl::validateResultRPCType: Expected RPC Type: "
+            << pQueryHandle->getExpectedRPCType()
+            << " validating RPC Type: "
+            << msg.m_rpc_type
+            << std::endl;)
+        return (pQueryHandle->getExpectedRPCType() == msg.m_rpc_type);
+    }
+    return false;
 }
 
 connectionStatus_t DrillClientImpl::handleConnError(connectionStatus_t status, const std::string& msg){
@@ -2112,8 +2165,12 @@ status_t DrillClientPrepareHandle::setupPreparedStatement(const exec::user::Prep
     }
 
     // Copy server handle
-    this->m_preparedStatementHandle.CopyFrom(pstmt.server_handle());
-    return QRY_SUCCESS;
+    if (pstmt.has_server_handle())
+    {
+        this->m_preparedStatementHandle.CopyFrom(pstmt.server_handle());
+        return QRY_SUCCESS;
+    }
+    return QRY_FAILURE;
 }
 
 void DrillClientPrepareHandle::clearAndDestroy(){
@@ -2140,6 +2197,9 @@ connectionStatus_t PooledDrillClientImpl::connect(const char* connStr, DrillUser
         std::vector<std::string> drillbits;
         int err = zook.getAllDrillbits(hostPortStr, drillbits);
         if(!err){
+            if (drillbits.empty()){
+                return handleConnError(CONN_FAILURE, getMessage(ERR_CONN_ZKNODBIT));
+            }
             Utils::shuffle(drillbits);
             // The original shuffled order is maintained if we shuffle first and then add any missing elements
             Utils::add(m_drillbits, drillbits);

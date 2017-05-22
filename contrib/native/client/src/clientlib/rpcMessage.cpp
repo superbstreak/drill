@@ -152,6 +152,11 @@ bool decode(const uint8_t* buf, int length, InBoundRpcMessage& msg) {
 
         assert(dbody_length == size);
         assert(msg.m_dbody==buf+currPos);
+
+        // Crashed during fuzznet, enforce assertion condition.
+        if (!((dbody_length == size) && (msg.m_dbody == (buf + currPos)))) {
+            return false;
+        }
 		#ifdef CODER_DEBUG
 			cerr << "Read raw body of " << dbody_length << " bytes" << endl;
 		#endif
@@ -173,6 +178,11 @@ bool decode(const uint8_t* buf, int length, InBoundRpcMessage& msg) {
 
     int endPos = cis.CurrentPosition();
     assert((endPos-startPos) == length);
+
+    // Crashed during fuzznet, enforce assertion condition.
+    if ((endPos - startPos) != length) {
+        return false;
+    }
     return true;
 }
 
