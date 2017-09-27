@@ -321,8 +321,8 @@ Drill::status_t QRListener(void* ctx, Drill::RecordBatch* in_rb, Drill::DrillCli
 }
 
 void ExecuteDRQry(
-    const std::string& in_qry, 
-    Drill::DrillClient& in_client, 
+    const std::string& in_qry,
+    Drill::DrillClient& in_client,
     Drill::QueryHandle_t& in_qryHandle)
 {
     std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: ExecuteDRQry ++++++++++++++ ENTER ++++++++++++++" << std::endl;
@@ -678,39 +678,74 @@ int main(int argc, char* argv[]) {
             }
             client.waitForResults();
         }
-        else{
-            if (bSyncSend){
-                for (queryInpIter = queryInputs.begin(); queryInpIter != queryInputs.end(); queryInpIter++) {
-                    Drill::QueryHandle_t qryHandle;
-                    client.submitQuery(type, *queryInpIter, QueryResultsListener, NULL, &qryHandle);
-                    client.registerSchemaChangeListener(&qryHandle, SchemaListener);
+        else
+        {
+            // Kill the initial client...
+            std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Killing initial connection..." << std::endl;
+            client.close();
 
-                    if (bTestCancel) {
-                        // Send cancellation request after 5seconds
-                        boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
-                        std::cout << "\n Cancelling query: " << *queryInpIter << "\n" << std::endl;
-                        client.cancelQuery(qryHandle);
+            // Counter.
+            int runCount = 0;
+
+            // Run until failure...
+            while (true)
+            {
+                std::cout << std::endl;
+                std::cout << "=================================================" << std::endl;
+                runCount += 1;
+                std::cout << "RUN COUNT: " << runCount << std::endl;
+                std::cout << "=================================================" << std::endl;
+                std::cout << std::endl;
+
+                Drill::DrillClient dc;
+                if (dc.connect(connectStr.c_str(), &props) != Drill::CONN_SUCCESS)
+                {
+                    std::cerr << "Failed to connect with error: " << dc.getError() << " (Using:" << connectStr << ")" << std::endl;
+                    return -1;
+                }
+
+                if (bSyncSend)
+                {
+                    for (queryInpIter = queryInputs.begin(); queryInpIter != queryInputs.end(); queryInpIter++)
+                    {
+                        Drill::QueryHandle_t qryHandle;
+                        dc.submitQuery(type, *queryInpIter, QueryResultsListener, NULL, &qryHandle);
+                        dc.registerSchemaChangeListener(&qryHandle, SchemaListener);
+
+                        if (bTestCancel)
+                        {
+                            // Send cancellation request after 5seconds
+                            boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 150 + 50));
+                            std::cout << "\n Cancelling query: " << *queryInpIter << "\n" << std::endl;
+                            dc.cancelQuery(qryHandle);
+                        }
+                        else
+                        {
+                            dc.waitForResults();
+                        }
+
+                        dc.freeQueryResources(&qryHandle);
                     }
-                    else {
-                        client.waitForResults();
+                }
+                else
+                {
+                    for (queryInpIter = queryInputs.begin(); queryInpIter != queryInputs.end(); queryInpIter++)
+                    {
+                        Drill::QueryHandle_t qryHandle;
+                        dc.submitQuery(type, *queryInpIter, QueryResultsListener, NULL, &qryHandle);
+                        dc.registerSchemaChangeListener(&qryHandle, SchemaListener);
+                        queryHandles.push_back(qryHandle);
                     }
-
-                    client.freeQueryResources(&qryHandle);
+                    dc.waitForResults();
+                    for (queryHandleIter = queryHandles.begin(); queryHandleIter != queryHandles.end(); queryHandleIter++)
+                    {
+                        dc.freeQueryResources(&*queryHandleIter);
+                    }
                 }
-
+                dc.close();
             }
-            else{
-                for (queryInpIter = queryInputs.begin(); queryInpIter != queryInputs.end(); queryInpIter++) {
-                    Drill::QueryHandle_t qryHandle;
-                    client.submitQuery(type, *queryInpIter, QueryResultsListener, NULL, &qryHandle);
-                    client.registerSchemaChangeListener(&qryHandle, SchemaListener);
-                    queryHandles.push_back(qryHandle);
-                }
-                client.waitForResults();
-                for (queryHandleIter = queryHandles.begin(); queryHandleIter != queryHandles.end(); queryHandleIter++) {
-                    client.freeQueryResources(&*queryHandleIter);
-                }
-            }
+
+            
         }
         client.close();
     }
