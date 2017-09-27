@@ -600,8 +600,8 @@ int main(int argc, char* argv[]) {
                 Drill::QueryHandle_t qHandle = NULL;
                 ExecuteDRQry(iptQuery, dc, qHandle);
 
-                std::cout << "RunTest +++++ Wait a rand time (10 to 155)..." << std::endl;
-                boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 145 + 10));
+                std::cout << "RunTest +++++ Wait a rand time (100 to 155)..." << std::endl;
+                boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 55 + 100));
 
                 std::cout << "RunTest +++++ Cancel query..." << std::endl;
                 if (NULL != qHandle)
