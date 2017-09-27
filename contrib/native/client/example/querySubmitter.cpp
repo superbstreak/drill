@@ -298,75 +298,43 @@ Drill::logLevel_t getLogLevel(const char *s){
 }
 
 
-// =========================================================================================
+// =================================================================================================
 // Segmentation Fault repro...
-// =========================================================================================
-struct DRResult
-{
-    DRResult() : m_status(Drill::QRY_FAILURE), m_pError(NULL), m_qryHandle(NULL), hasData(false)
-    {
-        std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: DRResult ++++++++++++++ ENTER ++++++++++++++" << std::endl;
-    }
-
-    void Reset()
-    {
-        std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: Reset ++++++++++++++ ENTER ++++++++++++++" << std::endl;
-        m_status = Drill::QRY_FAILURE;
-        if (NULL != m_pError)
-        {
-            delete m_pError;
-        }
-        m_pError = NULL;
-        m_qryHandle = NULL;
-        for (int i = 0; i < m_rbs.size(); ++i)
-        {
-            delete m_rbs[i];
-        }
-        m_rbs.clear();
-        hasData = false;
-    }
-
-    Drill::status_t m_status;
-    Drill::DrillClientError* m_pError;
-    Drill::QueryHandle_t m_qryHandle;
-    std::vector<Drill::RecordBatch*> m_rbs;
-    bool hasData;
-};
-
-DRResult* m_rs;
-
+// =================================================================================================
 Drill::status_t QRListener(void* ctx, Drill::RecordBatch* in_rb, Drill::DrillClientError* in_err)
 {
     std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener ++++++++++++++ ENTER ++++++++++++++" << std::endl;
     if (NULL != in_err)
     {
         std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener: Error not null." << std::endl;
-        m_rs->hasData = true;
     }
     else if ((NULL == in_rb) && (NULL == in_err))
     {
         std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener: Error null and RB null." << std::endl;
-        m_rs->hasData = true;
     }
     else
     {
         std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener: RB not null and error null." << std::endl;
         delete in_rb;
     }
+    return Drill::QRY_FAILURE;
 }
 
-void ExecuteDRQry(Drill::DrillClient& in_client)
+void ExecuteDRQry(
+    const std::string& in_qry, 
+    Drill::DrillClient& in_client, 
+    Drill::QueryHandle_t& in_qryHandle)
 {
     std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: ExecuteDRQry ++++++++++++++ ENTER ++++++++++++++" << std::endl;
     in_client.submitQuery(
         Drill::SQL,
-        "SELECT 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1 FROM (VALUES(1))",
+        in_qry,
         QRListener,
         NULL,
-        &(m_rs->m_qryHandle));
+        &(in_qryHandle));
 }
 
-// =========================================================================================
+// =================================================================================================
 
 int main(int argc, char* argv[]) {
     try {
@@ -592,80 +560,74 @@ int main(int argc, char* argv[]) {
             // Counter.
             int runCount = 0;
 
+            // Get the input query.
+            std::string iptQuery;
+            for (queryInpIter = queryInputs.begin(); queryInpIter != queryInputs.end(); queryInpIter++)
+            {
+                iptQuery = *queryInpIter;
+            }
+
             // Run until failure...
             while (true)
             {
+                std::cout << std::endl;
+                std::cout << "=================================================" << std::endl;
                 runCount += 1;
                 std::cout << "RUN COUNT: " << runCount << std::endl;
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Establishing connection..." << std::endl;
-                Drill::DrillClient m_client;
-                if (m_client.connect(connectStr.c_str(), &props) != Drill::CONN_SUCCESS){
-                    std::cerr << "Failed to connect with error: " << m_client.getError() << " (Using:" << connectStr << ")" << std::endl;
+                std::cout << "=================================================" << std::endl;
+                std::cout << std::endl;
+                std::cout << "RunTest +++++ Establishing connection" << std::endl;
+                Drill::DrillClient dc;
+                if (dc.connect(connectStr.c_str(), &props) != Drill::CONN_SUCCESS){
+                    std::cerr << "Failed to connect with error: " << dc.getError() << " (Using:" << connectStr << ")" << std::endl;
                     return -1;
-                }
-
-                // Reset and reuse.
-                if (NULL != m_rs)
-                {
-                    delete m_rs;
-                    m_rs = NULL;
                 }
 
                 // At this point we have the client and a successful connection has been established.
                 // Get Server metadata.
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Getting metadata..." << std::endl;
-                Drill::Metadata* metadata = m_client.getMetadata();
+                std::cout << "RunTest +++++ Getting metadata..." << std::endl;
+                Drill::Metadata* metadata = dc.getMetadata();
 
                 // Identify the server.
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Retrieving metadata info..." << std::endl;
+                std::cout << "RunTest +++++ Retrieving metadata info..." << std::endl;
                 std::string serverName = metadata->getServerName();
                 uint32_t major = metadata->getServerMajorVersion();
                 uint32_t minor = metadata->getServerMinorVersion();
                 uint32_t patch = metadata->getServerPatchVersion();
 
                 // Execute a simple query.
-                m_rs = new DRResult();
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Execute simple query..." << std::endl;
-                ExecuteDRQry(m_client);
+                std::cout << "RunTest +++++ Execute simple query..." << std::endl;
+                Drill::QueryHandle_t qHandle = NULL;
+                ExecuteDRQry(iptQuery, dc, qHandle);
 
-                // Free all recordbatch saved.
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Freeing recordbatch..." << std::endl;
-                for (int i = 0; i < m_rs->m_rbs.size(); ++i)
+                std::cout << "RunTest +++++ Wait a rand time (10 to 155)..." << std::endl;
+                boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 145 + 10));
+
+                std::cout << "RunTest +++++ Cancel query..." << std::endl;
+                if (NULL != qHandle)
                 {
-                    Drill::RecordBatch* rb = m_rs->m_rbs[i];
-                    if (NULL != rb)
-                    {
-                        std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Freeing recordbatch...NOT_NULL..." << std::endl;
-                        m_client.freeRecordBatch(rb);
-                    }
-                    rb = NULL;
+                    std::cout << "RunTest +++++ Cancel query...Not Null..." << std::endl;
+                    dc.cancelQuery(qHandle);
                 }
 
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Cancel query..." << std::endl;
-                if (NULL != m_rs->m_qryHandle)
+                std::cout << "RunTest +++++  Free Query Resources..." << std::endl;
+                if (NULL != qHandle)
                 {
-                    m_client.cancelQuery(m_rs->m_qryHandle);
+                    std::cout << "RunTest +++++ Free Query Resources...Not Null..." << std::endl;
+                    dc.freeQueryResources(&qHandle);
                 }
+                qHandle = NULL;
 
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Free Query Resources..." << std::endl;
-                if (NULL != m_rs->m_qryHandle)
-                {
-                    std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Free Query Resources...Not Null..." << std::endl;
-                    m_client.freeQueryResources(&(m_rs->m_qryHandle));
-                }
-                m_rs->m_qryHandle = NULL;
-
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Free Metadata..." << std::endl;
+                std::cout << "RunTest +++++ Free Metadata..." << std::endl;
                 if (NULL != metadata)
                 {
-                    std::cout << "ASFRC 0x0000000000: Free Metadata...Not Null..." << std::endl;
-                    m_client.freeMetadata(&metadata);
+                    std::cout << "RunTest +++++ Free Metadata...Not Null..." << std::endl;
+                    dc.freeMetadata(&metadata);
                     metadata = NULL;
                 }
 
-                std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Close client..." << std::endl;
-                m_client.close();
-               
+                std::cout << "RunTest +++++ Close client..." << std::endl;
+                dc.close();
             }
             return 0;
         }
