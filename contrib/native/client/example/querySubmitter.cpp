@@ -264,6 +264,70 @@ Drill::logLevel_t getLogLevel(const char *s){
     return Drill::LOG_ERROR;
 }
 
+// =================================================================================================
+// repro...
+// =================================================================================================
+std::string m_err;
+Drill::status_t QRListener(void* ctx, Drill::RecordBatch* in_rb, Drill::DrillClientError* in_err)
+{
+	std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener ++++++++++++++ ENTER ++++++++++++++" << std::endl;
+	m_err = "";
+	if (NULL != in_err)
+	{
+		m_err = in_err->msg.c_str();
+		std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener: Error not null.  ERR: " << std::endl;
+	}
+	else if ((NULL == in_rb) && (NULL == in_err))
+	{
+		std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener: Error null and RB null." << std::endl;
+	}
+	else
+	{
+		std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: QRListener: RB not null and error null." << std::endl;
+		delete in_rb;
+	}
+	return Drill::QRY_FAILURE;
+}
+
+Drill::status_t CatalogListener(
+    void* in_ctx,
+    const Drill::DrillCollection<Drill::meta::CatalogMetadata>* in_metadata,
+    Drill::DrillClientError* in_err)
+{
+    std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: CatalogListener ++++++++++++++ ENTER ++++++++++++++" << std::endl;
+    m_err = "";
+    if (NULL != in_err)
+    {
+        m_err = in_err->msg.c_str();
+        std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: CatalogListener: Error not null.  ERR: " << std::endl;
+    }
+    else if ((NULL == in_metadata) && (NULL == in_err))
+    {
+        std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: CatalogListener: Error null and RB null." << std::endl;
+    }
+    else
+    {
+        std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: CatalogListener: RB not null and error null." << std::endl;
+    }
+    return Drill::QRY_FAILURE;
+}
+
+void ExecuteDRQry(
+	const std::string& in_qry,
+	Drill::DrillClient& in_client,
+	Drill::QueryHandle_t& in_qryHandle)
+{
+	std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000001: ExecuteDRQry ++++++++++++++ ENTER ++++++++++++++" << std::endl;
+	in_client.submitQuery(
+		Drill::SQL,
+		in_qry,
+		QRListener,
+		NULL,
+		&(in_qryHandle));
+}
+
+// =================================================================================================
+
 int main(int argc, char* argv[]) {
     try {
 
@@ -362,7 +426,107 @@ int main(int argc, char* argv[]) {
             return -1;
         }
         std::cout<< "Connected!\n" << std::endl;
-        if(api=="sync"){
+		if (api == "debug")
+		{
+			std::cout << "==============================================================" << std::endl;
+			std::cout << "| RUN... " << std::endl;
+			std::cout << "==============================================================" << std::endl;
+
+			// Kill the initial client...
+			std::cout << ">>>>>>>>>>>>>> ASFRC 0x0000000000: Killing initial connection..." << std::endl;
+			client.close();
+
+			// Counter.
+			int runCount = 0;
+
+			// Get the input query.
+			std::string iptQuery;
+			for (queryInpIter = queryInputs.begin(); queryInpIter != queryInputs.end(); queryInpIter++)
+			{
+				iptQuery = *queryInpIter;
+			}
+
+			// Run until failure...
+			while (true)
+			{
+				std::cout << std::endl;
+				std::cout << "=================================================" << std::endl;
+				runCount += 1;
+				std::cout << "RUN COUNT: " << runCount << std::endl;
+				std::cout << "=================================================" << std::endl;
+				std::cout << std::endl;
+				std::cout << "RunTest +++++ Establishing connection" << std::endl;
+				Drill::DrillClient dc;
+				if (dc.connect(connectStr.c_str(), &props) != Drill::CONN_SUCCESS){
+					std::cerr << "Failed to connect with error: " << dc.getError() << " (Using:" << connectStr << ")" << std::endl;
+					return -1;
+				}
+
+				// At this point we have the client and a successful connection has been established.
+				// Get Server metadata.
+				std::cout << "RunTest +++++ Getting metadata..." << std::endl;
+				Drill::Metadata* metadata = dc.getMetadata();
+
+				// Identify the server.
+				std::cout << "RunTest +++++ Retrieving metadata info..." << std::endl;
+				std::string serverName = metadata->getServerName();
+				uint32_t major = metadata->getServerMajorVersion();
+				uint32_t minor = metadata->getServerMinorVersion();
+				uint32_t patch = metadata->getServerPatchVersion();
+
+                // Async call to get catalogs.
+                Drill::QueryHandle_t qHandle = NULL;
+                metadata->getCatalogs(
+                    "%",
+                    CatalogListener,
+                    NULL,
+                    &qHandle);
+
+                std::cout << "RunTest +++++ Wait a rand time (100 to 155)..." << std::endl;
+                boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 9500 + 1500));
+
+                std::cout << "********************************************************************* \n" << std::endl;
+                std::cout << "Any Error cat? \n" << m_err.c_str() << std::endl;
+                std::cout << "********************************************************************* \n" << std::endl;
+
+
+				// Execute a simple query.
+				std::cout << "RunTest +++++ Execute simple query..." << std::endl;
+				
+				ExecuteDRQry(iptQuery, dc, qHandle);
+
+				std::cout << "RunTest +++++ Wait a rand time (100 to 155)..." << std::endl;
+				boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 1000 + 1000));
+
+				std::cout << "RunTest +++++ Cancel query..." << std::endl;
+
+				std::cout << "RunTest +++++  Free Query Resources..." << std::endl;
+				if (NULL != qHandle)
+				{
+					std::cout << "RunTest +++++ Free Query Resources...Not Null..." << std::endl;
+					dc.freeQueryResources(&qHandle);
+				}
+				qHandle = NULL;
+
+				std::cout << "********************************************************************* \n" << std::endl;
+				std::cout << "Any Error qry? \n" << m_err.c_str() << std::endl;
+				std::cout << "********************************************************************* \n" << std::endl;
+
+				std::cout << "RunTest +++++ Free Metadata..." << std::endl;
+				if (NULL != metadata)
+				{
+					std::cout << "RunTest +++++ Free Metadata...Not Null..." << std::endl;
+					dc.freeMetadata(&metadata);
+					metadata = NULL;
+				}
+
+				std::cout << "RunTest +++++ Close client..." << std::endl;
+				dc.close();
+			}
+			return 0;
+		}
+		else if(api=="sync")
+		{
             Drill::DrillClientError* err=NULL;
             Drill::status_t ret;
             int nQueries=0;
