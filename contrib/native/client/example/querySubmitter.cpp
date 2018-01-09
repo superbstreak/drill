@@ -476,7 +476,7 @@ int main(int argc, char* argv[]) {
 
                 // Async call to get catalogs.
                 Drill::QueryHandle_t qHandle = NULL;
-                metadata->getCatalogs(
+                /* metadata->getCatalogs(
                     "%",
                     CatalogListener,
                     NULL,
@@ -487,7 +487,7 @@ int main(int argc, char* argv[]) {
 
                 std::cout << "********************************************************************* \n" << std::endl;
                 std::cout << "Any Error cat? \n" << m_err.c_str() << std::endl;
-                std::cout << "********************************************************************* \n" << std::endl;
+                std::cout << "********************************************************************* \n" << std::endl; */
 
 
 				// Execute a simple query.
