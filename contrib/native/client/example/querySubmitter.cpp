@@ -483,7 +483,7 @@ int main(int argc, char* argv[]) {
                     &qHandle);
 
                 std::cout << "RunTest +++++ Wait a rand time (100 to 155)..." << std::endl;
-                boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 9500 + 1500));
+                boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 100 + 1500));
 
                 std::cout << "********************************************************************* \n" << std::endl;
                 std::cout << "Any Error cat? \n" << m_err.c_str() << std::endl;
@@ -496,7 +496,7 @@ int main(int argc, char* argv[]) {
 				ExecuteDRQry(iptQuery, dc, qHandle);
 
 				std::cout << "RunTest +++++ Wait a rand time (100 to 155)..." << std::endl;
-				boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 1000 + 1000));
+				boost::this_thread::sleep(boost::posix_time::milliseconds(rand() % 1000 + 500));
 
 				std::cout << "RunTest +++++ Cancel query..." << std::endl;
 
