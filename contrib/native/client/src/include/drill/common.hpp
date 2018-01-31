@@ -82,14 +82,14 @@
 #endif // _WIN32 && !_WIN64
 
 
-//DEPRECATED MACRO
+//SB_DEPRECATED MACRO
 #if defined(__GNUC__) || defined(__llvm__)
-#define DEPRECATED __attribute__((deprecated))
+#define SB_DEPRECATED __attribute__((SB_DEPRECATED))
 #elif defined(_MSC_VER)
-#define DEPRECATED __declspec(deprecated)
+#define SB_DEPRECATED __declspec(SB_DEPRECATED)
 #else
-#pragma message("WARNING: DEPRECATED not available for this compiler")
-#define DEPRECATED
+#pragma message("WARNING: SB_DEPRECATED not available for this compiler")
+#define SB_DEPRECATED
 #endif
 
 namespace Drill {

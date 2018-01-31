@@ -844,7 +844,7 @@ class DECLSPEC_DRILL_CLIENT RecordBatch{
         size_t getNumRecords(){ return m_numRecords;}
         std::vector<FieldBatch*>& getFields(){ return m_fields;}
         size_t getNumFields();
-        DEPRECATED bool isLastChunk();
+        SB_DEPRECATED bool isLastChunk();
 
         boost::shared_ptr<std::vector<Drill::FieldMetadata*> > getColumnDefs(){ return m_fieldDefs;}
 

@@ -1111,7 +1111,7 @@ class DECLSPEC_DRILL_CLIENT DrillClient{
          * if not specified)
          * @return    connection status
          */
-        DEPRECATED connectionStatus_t connect(const char* connectStr, const char* defaultSchema=NULL);
+        SB_DEPRECATED connectionStatus_t connect(const char* connectStr, const char* defaultSchema=NULL);
 
         /*  
          * Connect the client to a Drillbit using connection string and a set of user properties.
